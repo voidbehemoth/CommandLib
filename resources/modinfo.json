@@ -1,0 +1,11 @@
+{
+    "HarmonyId": "voidbehemoth.commandlib",
+    "DisplayName": "CommandLib",
+    "Authors": [
+      "VoidBehemoth"
+    ],
+    "Description": "Easily create commands.",
+    "Version": "1.0.0",
+    "RequiredMods": [],
+    "Settings": {}
+}
