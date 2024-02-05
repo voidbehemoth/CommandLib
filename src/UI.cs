@@ -115,7 +115,7 @@ public class CommandUI
         string[] tokens = input.Split(" ");
         
         // Attempt to find current command
-        _currentCommand = CommandRegistry.Commands.Find((Command command) => command.name == tokens[0] || command.aliases.Contains(tokens[0]));
+        _currentCommand = CommandRegistry.Commands.Find((Command command) => command.name == tokens[0].ToLowerInvariant() || command.aliases.Contains(tokens[0].ToLowerInvariant()));
 
         // Return if unable to find current command
         if (_currentCommand == null) return;

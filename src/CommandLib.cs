@@ -78,7 +78,7 @@ public class ChatInputControllerPlus
             string commandName = tokens[0];
 
             // Find command
-            command = CommandRegistry.Commands.Find((Command command) => command.name == commandName || command.aliases.Any((string alias) => alias == commandName));
+            command = CommandRegistry.Commands.Find((Command command) => command.name == commandName.ToLowerInvariant() || command.aliases.Contains(commandName.ToLowerInvariant()));
 
             if (command == null)
             {

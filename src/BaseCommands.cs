@@ -23,7 +23,7 @@ public class HelpCommand : Command, IHelpMessage
             string commandName = args[0];
 
             // Find specified command
-            Command foundCommand = CommandRegistry.Commands.Find((Command command) => commandName == command.name || command.aliases.Any((string alias) => commandName == alias));
+            Command foundCommand = CommandRegistry.Commands.Find((Command command) => commandName.ToLowerInvariant() == command.name || command.aliases.Contains(commandName.ToLowerInvariant()));
 
             // Reject if command not found
             if (foundCommand == null) return new Tuple<bool, string>(false, $"Unable to find command '{commandName}'. Make sure you spelled it correctly!");
