@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="resources\modinfo.json" />
+    <EmbeddedResource Include="resources\images\thumbnail.png" />
     <EmbeddedResource Include="resources\assetbundles\commandlib_mac" />
     <EmbeddedResource Include="resources\assetbundles\commandlib" />
   </ItemGroup>
@@ -69,6 +70,10 @@
 
     <Reference Include="UnityEngine.AssetBundleModule">
       <HintPath>.\libs\UnityEngine.AssetBundleModule.dll</HintPath>
+    </Reference>
+
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>.\libs\Newtonsoft.Json.dll</HintPath>
     </Reference>
     
   </ItemGroup>

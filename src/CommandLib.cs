@@ -15,6 +15,7 @@ using CommandLib.UI;
 using System.IO;
 using System.Reflection;
 using Server.Shared.Extensions;
+using System.Threading;
 
 namespace CommandLib;
 
@@ -25,12 +26,8 @@ public class CommandLib
 
     public static void Start()
     {
-
-        Command.RegisterCustomColor("voidbehemoth.thatscrazy", Color.black);
-        Command.RegisterCustomColor("voidbehemoth.someothermod", Color.white);
-        CommandRegistry.AddCommand(new HelpCommand("help", "voidbehemoth.commandlib", ["h"]));
-        CommandRegistry.AddCommand(new HelpCommand("help2", "voidbehemoth.someothermod", ["h2"]));
-        CommandRegistry.AddCommand(new HelpCommand("help3", "voidbehemoth.thatscrazy", ["h3"]));
+        // Register example help command, passing in the command name and aliases
+        CommandRegistry.AddCommand(new HelpCommand("help", ["h"]));
 
         LoadSprites();
     }
@@ -48,64 +45,63 @@ public class CommandLib
 
 }
 
-public class CommandRegistry
-{
-    public static List<Command> Commands { get; private set; } = new List<Command>();
-
-    public static void AddCommand(Command command)
-    {
-        Commands.Add(command);
-    }
-
-    public static void RemoveCommand(Command command)
-    {
-        Commands.Remove(command);
-    }
-}
-
 [HarmonyPatch(typeof(ChatInputController))]
 public class ChatInputControllerPlus
 {
+    // Keep track of the previous command the user entered
+    public static string PreviousCommandInput { get; private set; } = "";
 
     [HarmonyPatch(nameof(ChatInputController.SubmitChat))]
     [HarmonyPrefix]
     public static bool CommandHandler(ChatInputController __instance)
     {
-        string input = __instance.chatInput.text.Trim();
+        // Encode text to make keywords function correctly
+        string input = __instance.chatInput.mentionPanel.mentionsProvider.EncodeText(__instance.chatInput.text.Trim());
 
-        if (!CommandUI._isCommandMode && input.Length < 1) return true;
+        Command command;
+        string[] args;
 
-        if (!CommandUI._isCommandMode && !input.StartsWith('/')) return true;
-
-        __instance.chatInput.text = string.Empty;
-
-        string[] tokens = (input.Length <= 1) ? [input] : input.Substring(1).Split(' ');
-
-        string commandName = CommandUI._isCommandMode ? CommandUI._currentCommand.name : tokens[0];
-        string[] args = CommandUI._isCommandMode ? tokens : tokens.Skip(1).ToArray();
-
-        Command foundCommand = CommandRegistry.Commands.Find((Command command) =>
+        // Scenario 1: the UI is in command mode, and the user hasn't entered a different command yet
+        if (CommandUI._isCommandMode && !input.StartsWith('/'))
         {
-            Console.Write($"{commandName} == {command.name}\nEval: {command.name != commandName && !command.aliases.Contains(commandName)}");
-            if (command.name != commandName && !command.aliases.Any((string alias) => alias == commandName)) return false;
+            command = CommandUI._currentCommand;
 
-            return true;
-        });
-
-        if (foundCommand == null)
+            // Create an empty array if the string itself is empty
+            args = (input.Length < 1) ? [] : input.Split(' ');
+        }
+        else // Scenario 2: the user has entered a command, but the UI isn't in command mode yet
         {
-            __instance.PlaySound("Audio/UI/Error.wav");
-            FeedbackHelper.SendFeedbackMessage($"Unknown command: '{commandName}'", ClientFeedbackType.Critical);
-            CommandUI.ExitCommandMode();
-            return false;
+            if (input.Length < 1 || !input.StartsWith('/')) return true;
+
+            string[] tokens = input.Substring(1).Split(' ');
+
+            string commandName = tokens[0];
+
+            // Find command
+            command = CommandRegistry.Commands.Find((Command command) => command.name == commandName || command.aliases.Any((string alias) => alias == commandName));
+
+            if (command == null)
+            {
+                __instance.PlaySound("Audio/UI/Error.wav");
+                FeedbackHelper.SendFeedbackMessage($"Unknown command: '{commandName}'");
+                return false;
+            }
+
+            // Skip the command itself, to get only the arguments
+            args = tokens.Skip(1).ToArray();
         }
 
-        Tuple<bool, string> commandFeedback = foundCommand.Execute(args);
+        // Update previous command, and empty the text input
+        PreviousCommandInput = CommandUI._isCommandMode ? $"/{CommandUI._currentCommand.name} {__instance.chatInput.text}" : __instance.chatInput.text;
+        __instance.chatInput.text = string.Empty;
 
+        Tuple<bool, string> commandFeedback = command.Execute(args);
+
+        // If the command rejects the input, let the user know why
         if (!commandFeedback.Item1)
         {
             __instance.PlaySound("Audio/UI/Error.wav");
-            FeedbackHelper.SendFeedbackMessage($"Error executing command '{foundCommand.name}': {commandFeedback.Item2}", ClientFeedbackType.Critical);
+            FeedbackHelper.SendFeedbackMessage($"Error executing command '{command.name}': {commandFeedback.Item2}");
             return false;
         }
 

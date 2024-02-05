@@ -7,5 +7,6 @@
     "Description": "Easily create commands.",
     "Version": "1.0.0",
     "RequiredMods": [],
-    "Settings": {}
+    "Settings": {},
+    "ModLib": true
 }

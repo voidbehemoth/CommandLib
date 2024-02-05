@@ -1,15 +1,34 @@
 using System;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using Newtonsoft.Json;
 using Server.Shared.Messages;
 using Server.Shared.State;
 using Server.Shared.State.Chat;
 using Services;
+using SML;
 using UnityEngine;
 
 namespace CommandLib.Util;
 
+// More clear logging
+public class ModLogger
+{
+    public static void Log(object message)
+    {
+        Log(message.ToString());
+    }
+
+    public static void Log(string message)
+    {
+        Debug.Log($"[CommandLib] {message}");
+    }
+}
+
 public class FeedbackHelper
 {
-    public static void SendFeedbackMessage(string message, ClientFeedbackType clientFeedbackType)
+    public static void SendFeedbackMessage(string message)
     {
         ChatLogMessage chatLogMessage = new ChatLogMessage(new ChatLogCustomTextEntry()
         {
@@ -18,6 +37,26 @@ public class FeedbackHelper
             showInChatLog = false
         });
         Service.Game.Sim.simulation.HandleChatLog(chatLogMessage);
+    }
+}
+
+public class AssemblyHelper
+{
+    public static string GetHarmonyIdFromAssembly(Assembly assembly)
+    {
+        string[] manifestResourceNames = assembly.GetManifestResourceNames();
+        string modinfoResource = Array.Find(manifestResourceNames, (string resourceName) => resourceName.ToLower().EndsWith("modinfo.json"));
+
+        if (modinfoResource == null) return "";
+
+        using (Stream manifestResourceStream = assembly.GetManifestResourceStream(modinfoResource))
+        {
+            using (StreamReader streamReader = new StreamReader(manifestResourceStream))
+            {
+                Mod.ModInfo modInfo = JsonConvert.DeserializeObject<Mod.ModInfo>(streamReader.ReadToEnd());
+                return modInfo.HarmonyId;
+            }
+        }
     }
 }
 
@@ -43,6 +82,7 @@ public class ColorHelper
         return (l1 + 0.05) / (l2 + 0.05);
     }
 
+    // Get appropriate text color (white or black), given a background color
     public static Color GetTextColor(Color backgroundColor)
     {
         double backgroundLuminance = GetRelativeLuminance(backgroundColor);
@@ -56,4 +96,6 @@ public class ColorHelper
     {
         return new Color((color.r + 0.5f) % 1f, (color.g + 0.5f) % 1f, (color.b + 0.5f) % 1f);
     }
+
+
 }
