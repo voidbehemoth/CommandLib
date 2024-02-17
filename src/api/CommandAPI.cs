@@ -79,7 +79,13 @@ public class CommandRegistry
     }
 }
 
+[Obsolete("This interface is obsolete. Use IDescription instead.", true)]
 public interface IHelpMessage
 {
     string GetHelpMessage();
+}
+
+public interface IDescription
+{
+    string GetDescription();
 }

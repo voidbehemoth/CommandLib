@@ -8,7 +8,7 @@ using Server.Shared.State;
 namespace CommandLib.BaseCommands;
 
 // Example Help command
-public class HelpCommand : Command, IHelpMessage
+public class HelpCommand : Command, IDescription
 {
     public HelpCommand(string name, string harmonyID, string[] aliases) : base(name, harmonyID, aliases) { }
     public HelpCommand(string name, string[] aliases) : base(name, aliases) { }
@@ -29,9 +29,17 @@ public class HelpCommand : Command, IHelpMessage
             if (foundCommand == null) return new Tuple<bool, string>(false, $"Unable to find command '{commandName}'. Make sure you spelled it correctly!");
 
             // Reject if the command does not implement IHelpMessage
-            if (!typeof(IHelpMessage).IsAssignableFrom(foundCommand.GetType())) return new Tuple<bool, string>(false, $"The command '{foundCommand.name} does not have a registered help command. Contact the developer of the developer of {foundCommand.harmonyId} for more information.");
+            if (!typeof(IDescription).IsAssignableFrom(foundCommand.GetType())) return new Tuple<bool, string>(false, $"The command '{foundCommand.name} does not have a registered help command. Contact the developer of the developer of {foundCommand.harmonyId} for more information.");
 
-            FeedbackHelper.SendFeedbackMessage(((IHelpMessage)foundCommand).GetHelpMessage());
+            string feedbackMessage = $"<b>{foundCommand.name}";
+
+            foreach (string alias in foundCommand.aliases) {
+                feedbackMessage += $"|{alias}";
+            }
+
+            feedbackMessage += $"</b> - {((IDescription)foundCommand).GetDescription()}";
+
+            FeedbackHelper.SendFeedbackMessage(feedbackMessage);
 
             return new Tuple<bool, string>(true, "");
         }
@@ -55,9 +63,8 @@ public class HelpCommand : Command, IHelpMessage
         return new Tuple<bool, string>(true, "");
     }
 
-    // Ok, this is meta
-    public string GetHelpMessage()
+    public string GetDescription()
     {
-        return "<b>/help [command]</b> - list help message of particular command or list all commands.";
+        return "List help message of particular command or list all commands.";
     }
 }
