@@ -87,5 +87,5 @@ public interface IHelpMessage
 
 public interface IDescription
 {
-    string GetDescription();
+    public string GetDescription();
 }
