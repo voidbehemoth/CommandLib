@@ -4,63 +4,70 @@ using System.Linq;
 using CommandLib.API;
 using CommandLib.Util;
 using Server.Shared.State;
+using System.Collections.Generic;
 
 namespace CommandLib.BaseCommands;
 
 // Example Help command
 public class HelpCommand : Command, IDescription
 {
-    public HelpCommand(string name, string harmonyID, string[] aliases) : base(name, harmonyID, aliases) { }
-    public HelpCommand(string name, string[] aliases) : base(name, aliases) { }
+    private static readonly TokenType[][] syntaxes = [
+        [],
+        [ new TokenType.CommandTokenType() ]
+    ];
 
-    public override Tuple<bool, string> Execute(string[] args)
+    public HelpCommand(string name, string harmonyID, string[] aliases) : base(name, syntaxes, harmonyID, aliases) { }
+    public HelpCommand(string name, string[] aliases) : base(name, syntaxes, aliases) { }
+
+    public override Tuple<bool, string> Execute(int syntaxIndex, object[] tokens)
     {
-        // Reject if more than 1 argument
-        if (args.Length > 1) return new Tuple<bool, string>(false, "Too many arguments!");
+        // List commands syntax
+        if (syntaxIndex == 0) {
+            string output = "The following commands are registered:\n";
 
-        if (args.Length > 0)
-        {
-            string commandName = args[0];
+            CommandRegistry.Commands.ForEach((Command command) =>
+            {
+                string commandText = $" <b>/{command.Name}";
 
-            // Find specified command
-            Command foundCommand = CommandRegistry.Commands.Find((Command command) => commandName.ToLowerInvariant() == command.name || command.aliases.Contains(commandName.ToLowerInvariant()));
+                foreach (string alias in command.Aliases)
+                {
+                    commandText += $"|{alias}";
+                }
 
-            // Reject if command not found
-            if (foundCommand == null) return new Tuple<bool, string>(false, $"Unable to find command '{commandName}'. Make sure you spelled it correctly!");
+                output += commandText + "</b>\n";
+            });
+
+            FeedbackHelper.SendFeedbackMessage(output);
+
+            return new Tuple<bool, string>(true, "");
+
+        } else { // Specific command syntax
+            Command command = (Command)tokens[0];
 
             // Reject if the command does not implement IHelpMessage
-            if (!typeof(IDescription).IsAssignableFrom(foundCommand.GetType())) return new Tuple<bool, string>(false, $"The command '{foundCommand.name} does not have a registered help command. Contact the developer of the developer of {foundCommand.harmonyId} for more information.");
+            if (!typeof(IDescription).IsAssignableFrom(command.GetType())) return new Tuple<bool, string>(false, $"The command '{command.Name} does not have a registered description. Contact the developer of the developer of {command.HarmonyId} for more information.");
 
-            string feedbackMessage = $"<b>{foundCommand.name}";
+            string feedbackMessage = "";
 
-            foreach (string alias in foundCommand.aliases) {
-                feedbackMessage += $"|{alias}";
+            foreach (TokenType[] syntax in command.Syntaxes) {
+                feedbackMessage += $"<b>{command.Name}";
+
+                foreach (string alias in command.Aliases) {
+                    feedbackMessage += $"|{alias}";
+                }
+
+                foreach (TokenType type in syntax) {
+                    feedbackMessage += $" <{type.LongName}>";
+                }
+                feedbackMessage += "</b>\n";
             }
 
-            feedbackMessage += $"</b> - {((IDescription)foundCommand).GetDescription()}";
+            feedbackMessage += $"\n{((IDescription)command).GetDescription()}\n";
 
             FeedbackHelper.SendFeedbackMessage(feedbackMessage);
 
             return new Tuple<bool, string>(true, "");
         }
-
-        string output = "The following commands are registered:\n";
-
-        CommandRegistry.Commands.ForEach((Command command) =>
-        {
-            string commandText = $" <b>/{command.name}";
-
-            foreach (string alias in command.aliases)
-            {
-                commandText += $"|{alias}";
-            }
-
-            output += commandText + "</b>\n";
-        });
-
-        FeedbackHelper.SendFeedbackMessage(output);
-
-        return new Tuple<bool, string>(true, "");
     }
 
     public string GetDescription()

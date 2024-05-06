@@ -3,19 +3,14 @@ using CommandLib.BaseCommands;
 using CommandLib.Util;
 using Game.Interface;
 using HarmonyLib;
-using Server.Shared.State;
 using SML;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using TMPro;
-using System.Runtime.CompilerServices;
 using CommandLib.UI;
-using System.IO;
 using System.Reflection;
 using Server.Shared.Extensions;
-using System.Threading;
 
 namespace CommandLib;
 
@@ -73,12 +68,12 @@ public class ChatInputControllerPlus
         {
             if (input.Length < 1 || !input.StartsWith('/')) return true;
 
-            string[] tokens = input.Substring(1).Split(' ');
+            string[] tok = input.Substring(1).Split(' ');
 
-            string commandName = tokens[0];
+            string commandName = tok[0];
 
             // Find command
-            command = CommandRegistry.Commands.Find((Command command) => command.name == commandName.ToLowerInvariant() || command.aliases.Contains(commandName.ToLowerInvariant()));
+            command = CommandRegistry.Commands.Find((Command command) => command.Name == commandName.ToLowerInvariant() || command.Aliases.Contains(commandName.ToLowerInvariant()));
 
             if (command == null)
             {
@@ -88,20 +83,63 @@ public class ChatInputControllerPlus
             }
 
             // Skip the command itself, to get only the arguments
-            args = tokens.Skip(1).ToArray();
+            args = tok.Skip(1).ToArray();
         }
 
         // Update previous command, and empty the text input
-        PreviousCommandInput = CommandUI._isCommandMode ? $"/{CommandUI._currentCommand.name} {__instance.chatInput.text}" : __instance.chatInput.text;
+        PreviousCommandInput = CommandUI._isCommandMode ? $"/{CommandUI._currentCommand.Name} {__instance.chatInput.text}" : __instance.chatInput.text;
         __instance.chatInput.text = string.Empty;
 
-        Tuple<bool, string> commandFeedback = command.Execute(args);
+        if (command.Syntaxes.All((TokenType[] syntax) => args.Length > syntax.Length)) {
+            FeedbackHelper.SendFeedbackMessage($"Too many arguments!");
+            return false;
+        }
+
+        if (command.Syntaxes.All((TokenType[] syntax) => args.Length < syntax.Length)) {
+            FeedbackHelper.SendFeedbackMessage($"Too few arguments!");
+            return false;
+        }
+
+        int syntaxIndex = 0;
+        bool valid = false;
+        List<object> tokens = new List<object>();
+
+        for (int i = 0; i < command.Syntaxes.Length; i++) {
+            if (args.Length != command.Syntaxes[i].Length) continue;
+
+            bool failed = false;
+            for (int j = 0; j < command.Syntaxes[i].Length; j++) {
+                Tuple<bool, object> validate = command.Syntaxes[i][j].Validate(args[j]);
+
+                if (!validate.Item1) {
+                    failed = true;
+                    break;
+                }
+
+                tokens.Add(validate.Item2);
+            }
+
+            if (!failed) {
+                syntaxIndex = i;
+                valid = true;
+                break;
+            }
+
+            tokens.Clear();
+        }
+
+        if (!valid) {
+            FeedbackHelper.SendFeedbackMessage($"Input does not match any syntax of {command.Name}!");
+            return false;
+        }
+
+        Tuple<bool, string> commandFeedback = command.Execute(syntaxIndex, [.. tokens]);
 
         // If the command rejects the input, let the user know why
         if (!commandFeedback.Item1)
         {
             __instance.PlaySound("Audio/UI/Error.wav");
-            FeedbackHelper.SendFeedbackMessage($"Error executing command '{command.name}': {commandFeedback.Item2}");
+            FeedbackHelper.SendFeedbackMessage($"Error executing command '{command.Name}': {commandFeedback.Item2}");
             return false;
         }
 

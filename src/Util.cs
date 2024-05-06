@@ -9,6 +9,7 @@ using Server.Shared.State.Chat;
 using Services;
 using SML;
 using UnityEngine;
+using static Mentions.MentionInfo;
 
 namespace CommandLib.Util;
 
@@ -96,6 +97,14 @@ public class ColorHelper
     {
         return new Color((color.r + 0.5f) % 1f, (color.g + 0.5f) % 1f, (color.b + 0.5f) % 1f);
     }
+}
 
+public class MentionInfoTypePlus {
 
+    public static MentionInfoType NONE = MentionInfoType.NONE;
+    public static MentionInfoType ROLE = MentionInfoType.ROLE;
+    public static MentionInfoType ACCOUNT = MentionInfoType.ACCOUNT;
+    public static MentionInfoType PLAYER = MentionInfoType.PLAYER;
+    public static MentionInfoType KEYWORD = MentionInfoType.KEYWORD;
+    public static MentionInfoType COMMAND = (MentionInfoType)5;
 }

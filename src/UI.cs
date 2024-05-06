@@ -4,10 +4,15 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using CommandLib.API;
 using CommandLib.Util;
+using Game.Chat;
 using Game.Interface;
 using HarmonyLib;
 using Home.Common.Tooltips;
+using Mentions;
+using Mentions.UI;
 using Server.Shared.Extensions;
+using Server.Shared.State.Chat;
+using Server.Shared.Utils;
 using SML;
 using TMPro;
 using UnityEngine;
@@ -102,7 +107,7 @@ public class CommandUI
         if (_currentCommand == null) return;
 
         // Get 3 colors: background, placeholder text/chat input text color, and the complementary color of the background
-        Tuple<Color, Color, Color> colors = GetColor(_currentCommand.harmonyId);
+        Tuple<Color, Color, Color> colors = GetColor(_currentCommand.HarmonyId);
 
         _chatInputController.parchmentBackgroundImage.color = colors.Item1;
         _chatInputController.chatInputText.color = colors.Item2;
@@ -115,7 +120,7 @@ public class CommandUI
         string[] tokens = input.Split(" ");
         
         // Attempt to find current command
-        _currentCommand = CommandRegistry.Commands.Find((Command command) => command.name == tokens[0].ToLowerInvariant() || command.aliases.Contains(tokens[0].ToLowerInvariant()));
+        _currentCommand = CommandRegistry.Commands.Find((Command command) => command.Name == tokens[0].ToLowerInvariant() || command.Aliases.Contains(tokens[0].ToLowerInvariant()));
 
         // Return if unable to find current command
         if (_currentCommand == null) return;
@@ -126,12 +131,12 @@ public class CommandUI
         CommandModeGO.SetActive(true);
 
         // Get the mod name and the mod icon
-        Tuple<string, Sprite> dataValue = GetModData(_currentCommand.harmonyId);
+        Tuple<string, Sprite> dataValue = GetModData(_currentCommand.HarmonyId);
 
         CommandModeGO.GetComponentInChildren<Image>().sprite = dataValue.Item2;
         _tooltip.NonLocalizedString = $"Added by {dataValue.Item1}";
         _isCommandMode = true;
-        _commandText.SetText($"/{_currentCommand.name}");
+        _commandText.SetText($"/{_currentCommand.Name}");
         _chatInputController.chatInput.text = tokens.Length > 1 ? tokens.Skip(1).Join(null, " ") : "";
         _chatInputController.SetChatState();
     }
@@ -191,3 +196,63 @@ public class CommandUI
         ColorDict.Add(harmonyID, colors);
     }
 }
+/*
+[HarmonyPatch(typeof(MentionMenuItem), nameof(MentionMenuItem.Initialize))]
+public class MentionMenuItemPlus {
+    [HarmonyPrefix]
+    public static bool Prefix(MentionMenuItem __instance, MentionInfo mentionInfo) {
+        if (mentionInfo.mentionInfoType != MentionInfoTypePlus.COMMAND) return true;
+        return false;
+    }
+}
+
+[HarmonyPatch(typeof(MentionsProvider))]
+public class Autocomplete {
+    public static readonly HashSet<char> AdditionalExpansionTokens = new HashSet<char> { '/' };
+
+    [HarmonyPatch(nameof(MentionsProvider.Start))]
+    [HarmonyPrefix]
+    public static void UpdateExpansionTokens() {
+
+    }
+
+    [HarmonyPatch(nameof(MentionsProvider.UpdateMatchInfo))]
+    [HarmonyPrefix]
+    public static bool UpdateMatchInfo(MentionsProvider __instance, string fullText, int stringPosition) {
+        if (!fullText.StartsWith('/')) return false;
+
+        __instance._matchInfo.fullText = fullText;
+        __instance._matchInfo.stringPosition = stringPosition;
+        __instance._matchInfo.matchIndex = 0;
+        __instance._matchInfo.matchToken = '/';
+        
+        int length = __instance._matchInfo.fullText.Length;
+
+        __instance._matchInfo.endsWithPunctuationCharacter = false;
+        __instance._matchInfo.followedByPunctuationCharacter = false;
+        char c2 = __instance._matchInfo.fullText[__instance._matchInfo.stringPosition - 1];
+        __instance._matchInfo.endsWithSubmissionCharacter = c2 == ' ';
+        __instance._matchInfo.endsWithPunctuationCharacter = length > 1 && SharedUtils.IsNonMentionPunctuation(c2);
+        if (__instance._matchInfo.stringPosition + 1 <= length)
+        {
+            char c3 = __instance._matchInfo.fullText[__instance._matchInfo.stringPosition];
+            __instance._matchInfo.followedBySubmissionCharacter = c3 == ' ';
+            __instance._matchInfo.followedByPunctuationCharacter = length > 1 && SharedUtils.IsNonMentionPunctuation(c3);
+        }
+
+        if (__instance._matchInfo.matchIndex >= 0)
+        {
+            int num = __instance._matchInfo.stringPosition - __instance._matchInfo.matchIndex;
+            if (__instance._matchInfo.endsWithSubmissionCharacter || __instance._matchInfo.endsWithPunctuationCharacter)
+            {
+                num = ((!__instance._matchInfo.endsWithSubmissionCharacter || num != 2) ? (num - 1) : 0);
+            }
+
+            __instance._matchInfo.matchString = ((num > 0 && __instance._matchInfo.fullText.Length >= __instance._matchInfo.matchIndex + num) ? __instance._matchInfo.fullText.Substring(__instance._matchInfo.matchIndex, num) : string.Empty);
+        }
+        else
+        {
+            __instance._matchInfo.matchString = string.Empty;
+        }
+    }
+}*/
